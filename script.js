@@ -78,26 +78,49 @@ scrollTopBtn.addEventListener('click', () => {
     });
 });
 
-// ===== Contact Form Submission =====
+// ===== Отправка формы в Telegram =====
 const contactForm = document.getElementById('contactForm');
 
-contactForm.addEventListener('submit', (e) => {
+contactForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // Get form data
-    const formData = new FormData(contactForm);
-    const name = formData.get('name');
-    const phone = formData.get('phone');
-    const message = formData.get('message');
-
-    // Here you would normally send the data to a server
-    // For now, we'll just show an alert
-    alert(`Спасибо, ${name}! Ваша заявка принята. Мы свяжемся с вами по телефону ${phone} в ближайшее время.`);
+    const submitBtn = contactForm.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.innerHTML;
     
-    // Reset form
-    contactForm.reset();
-});
+    // Блокируем кнопку
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Отправка...';
 
+    try {
+        const formData = new FormData(contactForm);
+        
+        const response = await fetch('send.php', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // ✅ Успех
+            alert('✅ Спасибо! Ваша заявка принята. Мы свяжемся с вами в ближайшее время.');
+            contactForm.reset();
+        } else {
+            // ❌ Ошибка валидации или сервера
+            alert('⚠️ ' + (result.message || 'Произошла ошибка. Попробуйте ещё раз.'));
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('❌ Не удалось отправить заявку. Проверьте соединение или позвоните нам.');
+    } finally {
+        // Возвращаем кнопку
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+    }
+});
 // ===== Smooth Scroll for Anchor Links =====
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
