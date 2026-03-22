@@ -78,49 +78,90 @@ scrollTopBtn.addEventListener('click', () => {
     });
 });
 
-// ===== Отправка формы в Telegram =====
+// ===== Отправка формы в Telegram через Vercel API =====
 const contactForm = document.getElementById('contactForm');
 
-contactForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const submitBtn = contactForm.querySelector('button[type="submit"]');
-    const originalBtnText = submitBtn.innerHTML;
-    
-    // Блокируем кнопку
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Отправка...';
+// URL вашего API на Vercel
+const API_URL = 'https://tvergranit-egek02etg-kiryushafns-projects.vercel.app/api/send.php';
 
-    try {
-        const formData = new FormData(contactForm);
+if (contactForm) {
+    contactForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        const response = await fetch('send.php', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'Accept': 'application/json'
+        const submitBtn = contactForm.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
+        
+        // Показываем состояние загрузки
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Отправка...';
+
+        try {
+            // Сбор данных формы
+            const formData = new FormData(contactForm);
+            const data = {
+                name: formData.get('name'),
+                phone: formData.get('phone'),
+                message: formData.get('message') || ''
+            };
+
+            // Отправка запроса на Vercel API
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data),
+                // Важно для CORS на Vercel
+                mode: 'cors',
+                credentials: 'omit'
+            });
+
+            // Чтение ответа
+            let result;
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                result = await response.json();
+            } else {
+                const text = await response.text();
+                throw new Error(`Некорректный ответ сервера: ${text}`);
             }
-        });
 
-        const result = await response.json();
+            // Обработка результата
+            if (response.ok && result.success) {
+                // ✅ Успех
+                alert('✅ Спасибо! Ваша заявка принята.\nМы свяжемся с вами в ближайшее время.');
+                contactForm.reset();
+            } else {
+                // ❌ Ошибка валидации или сервера
+                const errorMsg = result.message || 'Произошла ошибка при отправке';
+                alert('⚠️ ' + errorMsg);
+                console.error('Ошибка API:', result);
+            }
 
-        if (result.success) {
-            // ✅ Успех
-            alert('✅ Спасибо! Ваша заявка принята. Мы свяжемся с вами в ближайшее время.');
-            contactForm.reset();
-        } else {
-            // ❌ Ошибка валидации или сервера
-            alert('⚠️ ' + (result.message || 'Произошла ошибка. Попробуйте ещё раз.'));
+        } catch (error) {
+            console.error('Ошибка отправки:', error);
+            
+            // Дружелюбные сообщения об ошибках
+            let userMessage = '❌ Не удалось отправить заявку.';
+            
+            if (error.message.includes('Failed to fetch')) {
+                userMessage = '❌ Ошибка соединения. Проверьте интернет или попробуйте позже.';
+            } else if (error.message.includes('404')) {
+                userMessage = '❌ Сервис временно недоступен. Позвоните нам: +7 (4822) 35-00-00';
+            } else if (error.message.includes('403') || error.message.includes('CORS')) {
+                userMessage = '❌ Доступ запрещён. Попробуйте отправить заявку позже.';
+            }
+            
+            alert(userMessage);
+            
+        } finally {
+            // Возвращаем кнопку в исходное состояние
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
         }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        alert('❌ Не удалось отправить заявку. Проверьте соединение или позвоните нам.');
-    } finally {
-        // Возвращаем кнопку
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalBtnText;
-    }
-});
+    });
+}
 // ===== Smooth Scroll for Anchor Links =====
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
