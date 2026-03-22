@@ -1,5 +1,10 @@
 <?php
-// api/send.php — Исправленная версия для Vercel
+// api/send.php — Чистая версия для Vercel (PHP 8.0+)
+
+// 🔇 Отключаем вывод предупреждений в продакшене
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 
 // 🔐 CORS заголовки
 header('Content-Type: application/json; charset=utf-8');
@@ -17,13 +22,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Только POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Доступ запрещён']);
+    echo json_encode(['success' => false, 'message' => 'Доступ запрещён'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-// 🔐 НАСТРОЙКИ
-$token = "8717558717:AAHlH4BwuM26YbiRA95UzxZyXlMUJBY2_5M";
-$chat_id = "612146874";
+// 🔐 НАСТРОЙКИ (лучше использовать getenv() для Vercel)
+$token = getenv('TELEGRAM_BOT_TOKEN') ?: '8717558717:AAHlH4BwuM26YbiRA95UzxZyXlMUJBY2_5M';
+$chat_id = getenv('TELEGRAM_CHAT_ID') ?: '612146874';
 
 // 🔄 Получение данных: поддержка JSON и form-data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -34,7 +39,7 @@ $message = htmlspecialchars(trim($input['message'] ?? $_POST['message'] ?? ''), 
 // 🛡️ Валидация
 if (empty($name) || empty($phone)) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Заполните обязательные поля']);
+    echo json_encode(['success' => false, 'message' => 'Заполните обязательные поля'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -52,7 +57,6 @@ $text .= "🌐 *IP:* $ip\n";
 $text .= "⏰ *Время:* $time";
 
 // 📤 Отправка в Telegram
-// ❗ Исправлено: убраны лишние пробелы в URL
 $url = "https://api.telegram.org/bot$token/sendMessage";
 $data = [
     'chat_id' => $chat_id,
@@ -64,7 +68,7 @@ $data = [
 $ch = curl_init($url);
 curl_setopt_array($ch, [
     CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => http_build_query($data), // ❗ Важно: http_build_query для cURL
+    CURLOPT_POSTFIELDS => http_build_query($data),
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_SSL_VERIFYPEER => true,
     CURLOPT_TIMEOUT => 30
@@ -72,27 +76,27 @@ curl_setopt_array($ch, [
 
 $response = curl_exec($ch);
 $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$curl_error = curl_error($ch);
-curl_close($ch);
+// ❗ curl_close() удалён — в PHP 8.0+ он не нужен и вызывает deprecation
 
 // 📥 Обработка ответа
 if ($http_code === 200) {
     $result = json_decode($response, true);
     if ($result['ok'] ?? false) {
-        echo json_encode(['success' => true]);
+        echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
+        exit;
     } else {
         http_response_code(500);
         echo json_encode([
             'success' => false, 
             'message' => 'Ошибка Telegram: ' . ($result['description'] ?? 'неизвестная')
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
     }
 } else {
     http_response_code(500);
     echo json_encode([
         'success' => false, 
-        'message' => 'Ошибка соединения',
-        'debug' => $curl_error ?: "HTTP $http_code"
-    ]);
+        'message' => 'Ошибка соединения с сервером'
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
 }
-?>
