@@ -82,7 +82,7 @@ scrollTopBtn.addEventListener('click', () => {
 const contactForm = document.getElementById('contactForm');
 
 // URL вашего API на Vercel
-const API_URL = 'https://tvergranit-egek02etg-kiryushafns-projects.vercel.app/api/send.php';
+const API_URL = '/api/send.php';
 
 if (contactForm) {
     contactForm.addEventListener('submit', async (e) => {
